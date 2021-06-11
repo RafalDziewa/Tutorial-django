@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+
+<!--<form action="{% url 'polls:name_edit' name_id %}" method="post">-->
+<!--{% csrf_token %}-->
+<!--    <tr><th><label for="id_name">Your name:</label></th><td><input type="text" name="surname" maxlength="100"-->
+<!--                                                                   required id="id_name" value="{{ selected_name.name }}"></td></tr>-->
+<!--    <tr><th><label for="id_surname">Your surname:</label></th><td><input type="text" name="surname" maxlength="100"-->
+<!--                                                                         required id="id_surname" value="{{ selected_name.surname }}"></td></tr>-->
+<!--    <input type="submit" value="Submit">-->
+<!--</form>-->
+
+
+<form action="{% url 'polls:name_edit' name_id %}" method="post">
+    {% csrf_token %}
+    {{ form  }}
+    <input type="submit" value="Submit">
+
+</form>
+</body>
+</html>

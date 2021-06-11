@@ -1,1 +1,147 @@
 https://github.com/RafalDziewa/Tutorial-django.git
+
+# OS basic preparation
+​
+apt-get update && apt-get upgrade -y
+reboot
+apt-get install git -y
+apt-get install python3-pip python3-dev libpq-dev nginx -y
+systemctl stop nginx
+apt install postgresql-client-common
+sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+sudo apt-get update
+apt-get install postgresql-client-12 -y
+psql    --host=<endpoint_name>.eu-central-1.rds.amazonaws.com    --port=5432    --username=postgres    --password    --dbname=django_app
+​
+​
+# App user creation
+​
+useradd -m app
+less /etc/passwd
+# User app should have proper entry in /etc/passwd -> see last part /bin/bash
+# app:x:1002:1002::/home/app:/bin/bash
+vi /etc/passwd
+​
+​
+# App user actions
+​
+sudo su - app
+ssh-keygen -t rsa
+cd .ssh
+cat id_rsa.pub
+# GitHub action - add new SSH key
+git clone git@github.com:<user>/<repo>.git
+cd <repo>
+virtualenv venv
+source venv/bin/activate
+pip install gunicorn psycopg2
+venv/bin/python -m pip install --upgrade pip
+source venv/bin/activate
+pip install -r requirements.txt
+pip install -r requirements.txt --no-deps
+pip install gunicorn psycopg2
+pip list
+# Allowed host modification - add LoadBalancer DNS A record
+# ALLOWED_HOSTS = ["localhost","https://localhost",]
+vi settings.py
+python manage.py runserver 0.0.0.0:80
+python manage.py createsuperuser
+python manage.py collectstatic
+​
+​
+# Gunicorn setup
+​
+gunicorn --bind 0.0.0.0:8000 mysite.wsgi
+# logout from app user to root
+exit
+vi /etc/systemd/system/gunicorn.service
+# gunicorn.service contains below
+#################################
+[Unit]
+Description=gunicorn daemon
+After=network.target
+​
+[Service]
+User=app
+Group=www-data
+WorkingDirectory=/home/app/<repo>/mysite
+ExecStart=/home/app/<repo>/venv/bin/gunicorn --access-logfile - --workers 3 --bind unix:/home/app/<repo>/django_app.sock mysite.wsgi:application
+​
+[Install]
+WantedBy=multi-user.target
+#################################
+systemctl daemon-reload
+systemctl start gunicorn
+systemctl status gunicorn
+​
+​
+# Nginx setup
+​
+cd /etc/nginx/sites-available/
+vi django_app.conf
+# django_app.conf contains below
+#################################
+server {
+    listen 80;
+    server_name localhost;
+​
+    location = /favicon.ico { access_log off; log_not_found off; }
+    location /static/ {
+        root /home/app/<repo>/mysite;
+    }
+​
+    location /media/ {
+        root /home/app/<repo>/mysite;
+    }
+​
+    location / {
+        include proxy_params;
+        proxy_pass http://unix:/home/app/<repo>/django_app.sock;
+    }
+}
+#################################
+ln -s /etc/nginx/sites-available/django_app.conf /etc/nginx/sites-enabled
+cd /etc/nginx/sites-enabled
+rm default
+vi /etc/nginx/nginx.conf
+# nginx.conf contains below
+#################################
+user www-data;
+worker_processes auto;
+pid /run/nginx.pid;
+include /etc/nginx/modules-enabled/*.conf;
+​
+events {
+        worker_connections 768;
+        multi_accept on;
+}
+​
+http {
+        server_tokens off;
+        sendfile on;
+        tcp_nopush on;
+        tcp_nodelay on;
+        keepalive_timeout 65;
+        types_hash_max_size 2048;
+        include /etc/nginx/mime.types;
+        default_type application/octet-stream;
+        ssl_protocols TLSv1 TLSv1.1 TLSv1.2 TLSv1.3; # Dropping SSLv3, ref: POODLE
+        ssl_prefer_server_ciphers on;
+        access_log /var/log/nginx/access.log;
+        error_log /var/log/nginx/error.log;
+        include /etc/nginx/sites-enabled/ldesigner.conf;
+}
+#################################
+# more: http://nginx.org/en/docs/ngx_core_module.html
+nginx -t
+systemctl start nginx
+systemctl status nginx
+​
+​
+# Troubleshooting
+​
+apt install net-tools
+netstat -ntlp
+cd /var/log/nginx
+journalctl -u gunicorn

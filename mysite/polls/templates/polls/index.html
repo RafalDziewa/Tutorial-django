@@ -1,23 +1,42 @@
 {% load static %}
-
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="stylesheet" type="text/css" href="{% static 'polls/style.css' %}">
     <meta charset="UTF-8">
     <title>Title</title>
-    <link rel="stylesheet" type="text/css" href="{% static 'polls/style.css' %}">
 </head>
 <body>
+{% if messages %}
+<ul class="messages">
+    {% for message in messages %}
+    <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+    {% endfor %}
+</ul>
+{% endif %}
+
+
+{% if message %}<p><strong>{{ message }}</strong></p>{% endif %}
 {% if latest_question_list %}
     <ul>
     {% for question in latest_question_list %}
-        <li><a href="{% url 'polls:detail' question.id %}">{{ question.question_text }}</a></li>
+        <li><a href="{% url 'polls:detail' question.id %}">{{ question.question_text }} - {{ question.pub_date }}</a></li>
     {% endfor %}
     </ul>
 {% else %}
     <p>No polls are available.</p>
 {% endif %}
+
+<form action="{% url 'polls:index' %}" method="post">
+    {% csrf_token %}
+    {{ form.as_p  }}
+    <input type="submit" value="Submit">
+</form>
+
+
+<p>
+<a href="{% url 'logout' %}">Logout</a>
+</p>
+<link rel="stylesheet" type="text/css" href="{% static 'polls/style.css' %}">
 </body>
 </html>
